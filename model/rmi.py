@@ -128,7 +128,7 @@ class RMI_simple(object):
         # to handle variable batch sizes
         with tf.name_scope("placeholders"):
             keys_placeholder = tf.placeholder(tf.float32, shape=(None,self._data_set.key_size), name="keys")
-            labels_placeholder = tf.placeholder(tf.int64, shape=(None), name="labels")
+            labels_placeholder = tf.placeholder(tf.float32, shape=(None), name="labels")
         return keys_placeholder, labels_placeholder
 
 
@@ -253,14 +253,14 @@ class RMI_simple(object):
     def _setup_loss_stage_1(self, pos_stage_1, pos_true):        
         """Calculates the loss from the keys and positions, for Stage 1.
         Args:
-        pos_stage_1: int64 tensor with shape [batch_size, 1].
+        pos_stage_1: float tensor with shape [batch_size, 1].
                      The position predicted in stage 1
-        pos_true: int64 tensor wiht shape [batch_size].
+        pos_true: float tensor wiht shape [batch_size].
                   The true position for the key.
         Returns:
         loss: Loss tensor, using mean_squared_error.
         """
-        labels = tf.to_int64(pos_true)
+        labels = tf.to_float32(pos_true)
         loss = tf.losses.mean_squared_error(
             labels=pos_true,
             predictions=pos_stage_1)
@@ -409,16 +409,16 @@ class RMI_simple(object):
         """Calculates the loss from the keys and positions, for Stage 2.
         
         Args:
-            pos_stage_2: int64 tensor with shape [batch_size, 1].
+            pos_stage_2: float tensor with shape [batch_size, 1].
                          The position predicted in stage 1
-            pos_true: int64 tensor wiht shape [batch_size].
+            pos_true: float tensor wiht shape [batch_size].
                       The true position for the key.
         Returns:
             loss: Loss tensor, using mean_squared_error.
         """
         # Stage 2 
         with tf.name_scope('stage_2'):
-            labels = tf.to_int64(pos_true)
+            labels = tf.to_float32(pos_true)
             loss = tf.losses.mean_squared_error(
                 labels=pos_true,
                 predictions=pos_stage_2)
@@ -462,7 +462,7 @@ class RMI_simple(object):
 
     
     def run_training(self, batch_sizes, max_steps, 
-                    learning_rates, model_save_dir='tf_checkpoints'):
+                    learning_rates, epoch, model_save_dir='tf_checkpoints'):
         """Train both Stage 1 and Stage 2 (in order)
 
         Args:
@@ -543,84 +543,84 @@ class RMI_simple(object):
             # Run the Op to initialize the variables.
             sess.run(init)
             
-
-            ## Train Stage 1 
-            print("Stage 1 Training:")
-            
-            training_start_time = time.time()
-            
-            # Start the training loop.
-            for step in xrange(self.max_steps[0]):
-                start_time = time.time()
+            for epoch in xrange(epoch):
+                ## Train Stage 1 
+                print("Stage 1 Training:")
                 
-                # Fill a feed dictionary with the actual set of keys and labels
-                # for this particular training step.
-                feed_dict = self._fill_feed_dict(keys_placeholder,
-                                                 labels_placeholder,
-                                                 batch_size=self.batch_sizes[0])
+                training_start_time = time.time()
                 
-                # Run one step of the model.  The return values are the activations
-                # from the `train_op` (which is discarded) and the `loss` Op.
-                _, loss_value = sess.run([train_op_s1, loss_s1],
-                                         feed_dict=feed_dict)
-                
-                duration = time.time() - start_time
-
-                # Print an overview fairly often.
-                if step % 100 == 0:
-                    # Print status to stdout.
-                    print('Step %d: loss = %.2f (%.3f sec, total %.3f secs)' % (step, np.sqrt(loss_value), duration, time.time() - training_start_time))
-                    # Could write summary info in future implementation.
-                    # Update the events file.
-                    #summary_str = sess.run(summary, feed_dict=feed_dict)
-                    #summary_writer.add_summary(summary_str, step)
-                    #summary_writer.flush()
+                # Start the training loop.
+                for step in xrange(self.max_steps[0]):
+                    start_time = time.time()
                     
-                # Save a checkpoint and evaluate the model periodically.
-                if (step + 1) % 10000 == 0 and (step + 1) != self.max_steps[0]:
-                    checkpoint_file = os.path.join(self.model_save_dir, 'stage_1.ckpt')
-                    saver.save(sess, checkpoint_file, global_step=step)
-                if (step + 1) == self.max_steps[0]:
-                    checkpoint_file = os.path.join(self.model_save_dir, 'stage_1.ckpt')
-                    saver.save(sess, checkpoint_file)
-
-            ## Train Stage 2
-            print("\nStage 2 Training:")
-            
-            # Start the training loop.
-            for step in xrange(self.max_steps[1]):
-                start_time = time.time()
-                
-                # Fill a feed dictionary with the actual set of keys and labels
-                # for this particular training step.
-                feed_dict = self._fill_feed_dict(keys_placeholder,
-                                                 labels_placeholder,
-                                                 batch_size=self.batch_sizes[1])
-                
-                # Run one step of the model.  The return values are the activations
-                # from the `train_op` (which is discarded) and the `loss` Op.
-                _, loss_value = sess.run([train_op_s2, loss_s2],
-                                         feed_dict=feed_dict)
-                
-                duration = time.time() - start_time
-                
-                # Print an overview fairly often.
-                if step % 100 == 0:
-                    # Print status to stdout.
-                    print('Step %d: loss = %.2f (%.3f sec, total %.3f secs)' % (step, np.sqrt(loss_value), duration, time.time() - training_start_time))
-                    # Could write summary info in future implementation.
-                    # Update the events file.
-                    #summary_str = sess.run(summary, feed_dict=feed_dict)
-                    #summary_writer.add_summary(summary_str, step)
-                    #summary_writer.flush()
+                    # Fill a feed dictionary with the actual set of keys and labels
+                    # for this particular training step.
+                    feed_dict = self._fill_feed_dict(keys_placeholder,
+                                                     labels_placeholder,
+                                                     batch_size=self.batch_sizes[0])
                     
-                # Save a checkpoint and evaluate the model periodically.
-                if (step + 1) % 10000 == 0 and (step + 1) != self.max_steps[1]:
-                    checkpoint_file = os.path.join(self.model_save_dir, 'stage_2.ckpt')
-                    saver.save(sess, checkpoint_file, global_step=step)
-                if (step + 1) == self.max_steps[1]:
-                    checkpoint_file = os.path.join(self.model_save_dir, 'stage_2.ckpt')
-                    saver.save(sess, checkpoint_file)
+                    # Run one step of the model.  The return values are the activations
+                    # from the `train_op` (which is discarded) and the `loss` Op.
+                    _, loss_value = sess.run([train_op_s1, loss_s1],
+                                             feed_dict=feed_dict)
+                    
+                    duration = time.time() - start_time
+
+                    # Print an overview fairly often.
+                    if step % 100 == 0:
+                        # Print status to stdout.
+                        print('Step %d: loss = %.2f (%.3f sec, total %.3f secs)' % (step, np.sqrt(loss_value), duration, time.time() - training_start_time))
+                        # Could write summary info in future implementation.
+                        # Update the events file.
+                        #summary_str = sess.run(summary, feed_dict=feed_dict)
+                        #summary_writer.add_summary(summary_str, step)
+                        #summary_writer.flush()
+                        
+                    # Save a checkpoint and evaluate the model periodically.
+                    # if (step + 1) % 10000 == 0 and (step + 1) != self.max_steps[0]:
+                    #     checkpoint_file = os.path.join(self.model_save_dir, 'stage_1.ckpt')
+                    #     saver.save(sess, checkpoint_file, global_step=step)
+                    # if (step + 1) == self.max_steps[0]:
+                checkpoint_file = os.path.join(self.model_save_dir, 'stage_1.ckpt')
+                saver.save(sess, checkpoint_file)
+
+                ## Train Stage 2
+                print("\nStage 2 Training:")
+                
+                # Start the training loop.
+                for step in xrange(self.max_steps[1]):
+                    start_time = time.time()
+                    
+                    # Fill a feed dictionary with the actual set of keys and labels
+                    # for this particular training step.
+                    feed_dict = self._fill_feed_dict(keys_placeholder,
+                                                     labels_placeholder,
+                                                     batch_size=self.batch_sizes[1])
+                    
+                    # Run one step of the model.  The return values are the activations
+                    # from the `train_op` (which is discarded) and the `loss` Op.
+                    _, loss_value = sess.run([train_op_s2, loss_s2],
+                                             feed_dict=feed_dict)
+                    
+                    duration = time.time() - start_time
+                    
+                    # Print an overview fairly often.
+                    if step % 100 == 0:
+                        # Print status to stdout.
+                        print('Step %d: loss = %.2f (%.3f sec, total %.3f secs)' % (step, np.sqrt(loss_value), duration, time.time() - training_start_time))
+                        # Could write summary info in future implementation.
+                        # Update the events file.
+                        #summary_str = sess.run(summary, feed_dict=feed_dict)
+                        #summary_writer.add_summary(summary_str, step)
+                        #summary_writer.flush()
+                        
+                    # Save a checkpoint and evaluate the model periodically.
+                    # if (step + 1) % 10000 == 0 and (step + 1) != self.max_steps[1]:
+                    #     checkpoint_file = os.path.join(self.model_save_dir, 'stage_2.ckpt')
+                    #     saver.save(sess, checkpoint_file, global_step=step)
+                    # if (step + 1) == self.max_steps[1]:
+                checkpoint_file = os.path.join(self.model_save_dir, 'stage_2.ckpt')
+                saver.save(sess, checkpoint_file)
 
 
     def _run_inference_tensorflow(self,keys):
@@ -977,7 +977,8 @@ class RMI_simple(object):
             
             for idx in range(len(positions)):
                 
-                pos = np.round(positions[idx])
+                #pos = np.round(positions[idx])
+                pos = positions[idx]
                 expert = experts[idx]
                 true_pos = true_positions_batch[idx]
                 
