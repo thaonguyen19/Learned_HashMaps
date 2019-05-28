@@ -112,12 +112,12 @@ def create_train_validate_test_data_sets(data_set, val_ratio, test_ratio):
     num_test = int(data_set.num_keys * test_ratio)
     num_train = data_set.num_keys - num_val - num_test
 
-    train_keys = keys[:(num_train+1)]
-    train_positions = positions[:(num_train+1)]
-    validation_keys = keys[(num_train+1) : (num_train+num_val+1)]
-    validation_positions = positions[(num_train+1) : (num_train+num_val+1)]
-    test_keys = keys[(num_train+num_val+1):]
-    test_positions = positions[(num_train+num_val+1):]
+    train_keys = keys[:num_train]
+    train_positions = positions[:num_train]
+    validation_keys = keys[num_train : (num_train+num_val)]
+    validation_positions = positions[num_train : (num_train+num_val)]
+    test_keys = keys[(num_train+num_val):]
+    test_positions = positions[(num_train+num_val):]
 
     train = DataSet(np.reshape(train_keys,[-1,1]), train_positions)
     validation = DataSet(validation_keys, validation_positions)

@@ -1000,6 +1000,11 @@ class RMI_simple(object):
                     self.max_error_right[expert] = np.maximum(self.max_error_right[expert],
                                                               np.abs(error))
 
+        for expert in range(self.max_error_left.shape[0]):
+            print("expert %d left error: %.10f" % (expert, self.max_error_left[expert]))
+        for expert in range(self.max_error_right.shape[0]):
+            print("expert %d right error: %.10f" % (expert, self.max_error_right[expert]))
+
                         
     def _initialize_errors(self):
         """Helper function that initializes all errors before call to 

@@ -1,16 +1,17 @@
 from rmi import *
 from dataloader import *
+import argparse
 
 VAL_RATIO = 0.2
 TEST_RATIO = 0.2
 
 
-def train(data_path):
-    data_set = load_synthetic_data(data_path)
+def train(args):
+    data_set = load_synthetic_data(args.data_dir)
     data_sets = create_train_validate_test_data_sets(data_set, VAL_RATIO, TEST_RATIO)
-    model = RMI_simple(train_set, hidden_layer_widths=[16,16], num_experts=10)
-    model.run_training(batch_sizes=batch_sizes, max_steps=max_steps,
-                        learning_rates=learning_rates, model_save_dir=model_save_dir)
+    model = RMI_simple(data_sets.train, hidden_layer_widths=[args.hidden_width], num_experts=args.num_experts)
+    model.run_training(batch_sizes=[args.batch_size] * 2, max_steps=[data_sets.train.num_keys//args.batch_size] * 2,
+                        learning_rates=args.lr, model_save_dir=args.model_save_dir)
     model.get_weights_from_trained_model()
     model.calc_min_max_errors()
     return model
@@ -21,8 +22,12 @@ def inference():
     pass
 
 if __name__ == '__main__':
-    pass
-
-
-
-
+    parser = argparse.ArgumentParser(description='Training')
+    parser.add_argument('-model_save_dir', default='results/')
+    parser.add_argument('-data_dir', default='../data/linear_a=2_b=1.txt')
+    parser.add_argument('-lr', nargs='+', type=float, default=[1e-2, 1e-2])
+    parser.add_argument('-batch_size', type=int, default=64)
+    parser.add_argument('-num_experts', type=int, default=10)
+    parser.add_argument('-hidden_width', type=int, default=16)
+    args = parser.parse_args()
+    train(args)
