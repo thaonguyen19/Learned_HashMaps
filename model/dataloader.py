@@ -120,8 +120,8 @@ def create_train_validate_test_data_sets(data_set, val_ratio, test_ratio):
     test_positions = positions[(num_train+num_val):]
 
     train = DataSet(np.reshape(train_keys,[-1,1]), train_positions)
-    validation = DataSet(validation_keys, validation_positions)
-    test = DataSet(test_keys, test_positions)
+    validation = DataSet(np.reshape(validation_keys,[-1,1]), validation_positions)
+    test = DataSet(np.reshape(test_keys,[-1,1]), test_positions)
 
     class DataSets(object):
         pass

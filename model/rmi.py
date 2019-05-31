@@ -982,7 +982,6 @@ class RMI_simple(object):
                 expert = experts[idx]
                 true_pos = true_positions_batch[idx]
                 
-                
                 self.min_predict[expert] = np.minimum(self.min_predict[expert],
                                                       pos)
                 self.max_predict[expert] = np.maximum(self.max_predict[expert],
@@ -1005,8 +1004,7 @@ class RMI_simple(object):
             print("expert %d left error: %.10f" % (expert, self.max_error_left[expert]))
         for expert in range(self.max_error_right.shape[0]):
             print("expert %d right error: %.10f" % (expert, self.max_error_right[expert]))
-
-                        
+          
     def _initialize_errors(self):
         """Helper function that initializes all errors before call to 
 
