@@ -260,7 +260,7 @@ class RMI_simple(object):
         Returns:
         loss: Loss tensor, using mean_squared_error.
         """
-        labels = tf.to_float32(pos_true)
+        #labels = tf.to_float(pos_true)
         loss = tf.losses.mean_squared_error(
             labels=pos_true,
             predictions=pos_stage_1)
@@ -418,7 +418,7 @@ class RMI_simple(object):
         """
         # Stage 2 
         with tf.name_scope('stage_2'):
-            labels = tf.to_float32(pos_true)
+            #labels = tf.to_float(pos_true)
             loss = tf.losses.mean_squared_error(
                 labels=pos_true,
                 predictions=pos_stage_2)
