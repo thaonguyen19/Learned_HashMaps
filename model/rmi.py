@@ -240,11 +240,11 @@ class RMI_simple(object):
                 # the learning rates scale with N, so we should
                 # consider doing this normalization outside of
                 # the Tensflow pipeline.
-                pos_stage_1 = tf.scalar_mul(tf.constant(self._data_set.num_positions,
-                                                        dtype=tf.float64),
-                                            tf.add(pos_stage_1,
-                                                   tf.constant(0.5,dtype=tf.float64)))
-                    
+                #pos_stage_1 = tf.scalar_mul(tf.constant(self._data_set.num_positions,
+                #                                        dtype=tf.float64),
+                #                            tf.add(pos_stage_1,
+                #                                   tf.constant(0.5,dtype=tf.float64)))
+                #    
                 pos_stage_1 = tf.identity(pos_stage_1,name="pos")
     
         return pos_stage_1
@@ -311,7 +311,7 @@ class RMI_simple(object):
 
         # Stage 2 
         with tf.name_scope('stage_2'):
-
+            
             keys_std = self._data_set.keys_std
             keys_mean = self._data_set.keys_mean
 
@@ -329,7 +329,7 @@ class RMI_simple(object):
             
             keys_normed = tf.scalar_mul(tf.constant(0.5/np.sqrt(3)),
                                         keys_normed)
-
+            
             # Calculate which expert to use
             expert_index = tf.to_int32(
                 tf.floor(
@@ -376,8 +376,9 @@ class RMI_simple(object):
             # Normalize variable weights and biases
             weights = tf.Variable(
                 tf.truncated_normal([self.num_experts],
-                                    mean=1.0*max_index,
-                                    stddev=0.5*max_index,
+                                    stddev=1.0,
+                                    #mean=1.0*max_index,
+                                    #stddev=0.5*max_index,
                                     dtype=tf.float64),
                 name='weights')
 
@@ -745,7 +746,7 @@ class RMI_simple(object):
             feed_dict = {keys_placeholder: keys}
 
             # Print the values of tensors used in the model
-            
+           
             print("Stage 1 position predictions (one per batch):")
             print(sess.run(pos_stage_1,feed_dict=feed_dict))
             
@@ -776,7 +777,7 @@ class RMI_simple(object):
             print("Gate vector times biases summed (one per batch):")
             gated_biases_summed = sess.graph.get_tensor_by_name("stage_2/gated_biases_summed:0")
             print(sess.run(gated_biases_summed,feed_dict=feed_dict))
-            
+           
             print("Key (one per batch):")
             key = sess.graph.get_tensor_by_name("stage_2/key:0")
             print(sess.run(key,feed_dict=feed_dict))

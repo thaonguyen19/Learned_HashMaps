@@ -5,6 +5,19 @@ import copy
 
 VAL_RATIO = 0.2
 TEST_RATIO = 0.2
+LOAD_FACTOR = 0.5
+
+def get_stats(model, dataset, name):
+    N = len(dataset.keys)
+    pred, _ = model._run_inference_tensorflow(dataset.keys)
+    mse = np.mean((pred - dataset.positions)**2)
+    print(name + " MSE: %.10f" % mse)
+    num_buckets = int(N/LOAD_FACTOR)
+    unique_index = set([int(num_buckets*pred[i]) for i in range(N)])
+    print(len(unique_index))
+    num_collisions = N - len(unique_index)
+    print(name + " number of collisions: %d" % num_collisions)
+    return mse
 
 def train(args):
     print("training on:", args)
@@ -13,16 +26,15 @@ def train(args):
     model = RMI_simple(data_sets.train, hidden_layer_widths=args.hidden_width, num_experts=args.num_experts)
     max_steps = [data_sets.train.num_keys//b for b in args.batch_size]
     model.run_training(batch_sizes=args.batch_size, max_steps=max_steps,
-                        learning_rates=args.lr, model_save_dir=args.model_save_dir, epoch=args.epoch)
+                       learning_rates=args.lr, model_save_dir=args.model_save_dir, epoch=args.epoch)
     model.get_weights_from_trained_model()
+
+    #print(data_sets.train.positions[:10])
     #model.inspect_inference_steps(data_sets.train.keys[:10])
-    model.calc_min_max_errors()
-    train_pred, _ = model._run_inference_tensorflow(data_sets.train.keys)
-    train_mse = np.mean((train_pred - data_sets.train.positions)**2)
-    print("Training MSE: %.10f" % train_mse)
-    val_pred, _ = model._run_inference_tensorflow(data_sets.validate.keys)
-    val_mse = np.mean((val_pred - data_sets.validate.positions)**2)
-    print("Validation MSE: %.10f" % val_mse)
+    #model.calc_min_max_errors()
+
+    train_mse = get_stats(model, data_sets.train, 'Training')
+    val_mse = get_stats(model, data_sets.validate, 'Validation')
     return model, val_mse
 
 def inference(args):
@@ -53,5 +65,5 @@ if __name__ == '__main__':
     parser.add_argument('-hidden_width', nargs='+', type=int, default=[16])
     parser.add_argument('-epoch', type=int, default=5)
     args = parser.parse_args()
-    inference(args)
-    #train(args)
+    #inference(args)
+    train(args)
