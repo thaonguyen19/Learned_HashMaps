@@ -14,7 +14,6 @@ def get_stats(model, dataset, name):
     print(name + " MSE: %.10f" % mse)
     num_buckets = int(N/LOAD_FACTOR)
     unique_index = set([int(num_buckets*pred[i]) for i in range(N)])
-    print(len(unique_index))
     num_collisions = N - len(unique_index)
     print(name + " number of collisions: %d" % num_collisions)
     return mse
@@ -29,9 +28,9 @@ def train(args):
                        learning_rates=args.lr, model_save_dir=args.model_save_dir, epoch=args.epoch)
     model.get_weights_from_trained_model()
 
-    #print(data_sets.train.positions[:10])
-    #model.inspect_inference_steps(data_sets.train.keys[:10])
-    #model.calc_min_max_errors()
+    print(data_sets.train.positions[:10])
+    model.inspect_inference_steps(data_sets.train.keys[:10])
+    model.calc_min_max_errors()
 
     train_mse = get_stats(model, data_sets.train, 'Training')
     val_mse = get_stats(model, data_sets.validate, 'Validation')

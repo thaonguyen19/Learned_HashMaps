@@ -22,7 +22,6 @@ class RMI_simple(object):
         The first stage is a fully connected neural network with any number
         (>=0) of hidden layers. Each second stage model is a single-variable
         linear regression.
-
         At model creation, the user can choose the widths of the
         hidden layers and the number of models ("experts") used in
         stage 2.
@@ -192,8 +191,8 @@ class RMI_simple(object):
                 # a uniform distribution in the range [a,b] would transform
                 # to a uniform distribution in the range [-0.5,0.5]
 
-                keys_normed = tf.scalar_mul(tf.constant(0.5/np.sqrt(3)),
-                                            keys_normed)
+                #keys_normed = tf.scalar_mul(tf.constant(0.5/np.sqrt(3)),
+                #                            keys_normed)
             
             # All hidden layers
             tf_output = keys_normed # previous output
@@ -315,7 +314,7 @@ class RMI_simple(object):
             keys_std = self._data_set.keys_std
             keys_mean = self._data_set.keys_mean
 
-            keys = tf.squeeze(keys,1)
+            #keys = tf.squeeze(keys,1)
             keys = tf.identity(keys,name='key')
             keys = tf.cast(keys,dtype=tf.float64)
                 
@@ -327,8 +326,8 @@ class RMI_simple(object):
             # a uniform distribution in the range [a,b] would transform
             # to a uniform distribution in the range [-0.5,0.5]
             
-            keys_normed = tf.scalar_mul(tf.constant(0.5/np.sqrt(3)),
-                                        keys_normed)
+            #keys_normed = tf.scalar_mul(tf.constant(0.5/np.sqrt(3)),
+            #                            keys_normed)
             
             # Calculate which expert to use
             expert_index = tf.to_int32(
@@ -375,31 +374,26 @@ class RMI_simple(object):
          
             # Normalize variable weights and biases
             weights = tf.Variable(
-                tf.truncated_normal([self.num_experts],
+                tf.truncated_normal([self.num_experts, self._data_set.key_size],
                                     stddev=1.0,
                                     #mean=1.0*max_index,
                                     #stddev=0.5*max_index,
                                     dtype=tf.float64),
                 name='weights')
 
-            biases = tf.Variable(tf.zeros([self.num_experts],dtype=tf.float64),
+            biases = tf.Variable(tf.zeros([self.num_experts, 1],dtype=tf.float64),
                                  name='biases')
 
             # Dot-product gates with weights and biases,
             # to only use one expert at a time.
-            gated_weights = tf.multiply(gates,weights)
-            gated_biases = tf.multiply(gates,biases)
-            gated_weights_summed = tf.reduce_sum(gated_weights,axis=1)
-            gated_biases_summed = tf.reduce_sum(gated_biases,axis=1)
+            gated_weights = tf.matmul(gates, weights)
+            gated_biases = tf.squeeze(tf.matmul(gates, biases), axis=1)
 
             # Name the variables for later access
             gated_weights = tf.identity(gated_weights, name="gated_weights")
             gated_biases = tf.identity(gated_biases, name="gated_biases")
-            gated_weights_summed = tf.identity(gated_weights_summed, name="gated_weights_summed")
-            gated_biases_summed = tf.identity(gated_biases_summed, name="gated_biases_summed")
 
-            # Do the linear regression to predict the key position
-            pos_stage_2 = tf.add( tf.multiply(keys_normed, gated_weights_summed), gated_biases_summed)
+            pos_stage_2 = tf.reduce_sum(tf.multiply(gated_weights, keys_normed), axis=1) + gated_biases
             pos_stage_2 = tf.identity(pos_stage_2, name="pos")
 
         # Returns the predicted position for Stage 2
@@ -570,7 +564,7 @@ class RMI_simple(object):
                     # Print an overview fairly often.
                     if step % 100 == 0:
                         # Print status to stdout.
-                        print('Step %d: loss = %.2f (%.3f sec, total %.3f secs)' % (step, np.sqrt(loss_value), duration, time.time() - training_start_time))
+                        print('Step %d: loss = %.10f (%.3f sec, total %.3f secs)' % (step, np.sqrt(loss_value), duration, time.time() - training_start_time))
                         # Could write summary info in future implementation.
                         # Update the events file.
                         #summary_str = sess.run(summary, feed_dict=feed_dict)
@@ -608,7 +602,7 @@ class RMI_simple(object):
                     # Print an overview fairly often.
                     if step % 100 == 0:
                         # Print status to stdout.
-                        print('Step %d: loss = %.2f (%.3f sec, total %.3f secs)' % (step, np.sqrt(loss_value), duration, time.time() - training_start_time))
+                        print('Step %d: loss = %.10f (%.3f sec, total %.3f secs)' % (step, np.sqrt(loss_value), duration, time.time() - training_start_time))
                         # Could write summary info in future implementation.
                         # Update the events file.
                         #summary_str = sess.run(summary, feed_dict=feed_dict)
@@ -747,6 +741,10 @@ class RMI_simple(object):
 
             # Print the values of tensors used in the model
            
+            print("Key (one per batch):")
+            key = sess.graph.get_tensor_by_name("stage_2/key:0")
+            print(sess.run(key,feed_dict=feed_dict))
+            
             print("Stage 1 position predictions (one per batch):")
             print(sess.run(pos_stage_1,feed_dict=feed_dict))
             
@@ -766,22 +764,10 @@ class RMI_simple(object):
             gated_weights = sess.graph.get_tensor_by_name("stage_2/gated_weights:0")
             print(sess.run(gated_weights,feed_dict=feed_dict))
             
-            print("Gate vector times weights summed (one per batch):")
-            gated_weights_summed = sess.graph.get_tensor_by_name("stage_2/gated_weights_summed:0")
-            print(sess.run(gated_weights_summed,feed_dict=feed_dict))
-            
             print("Gate vector times biases (one per batch):")
             gated_biases = sess.graph.get_tensor_by_name("stage_2/gated_biases:0")
             print(sess.run(gated_biases,feed_dict=feed_dict))
             
-            print("Gate vector times biases summed (one per batch):")
-            gated_biases_summed = sess.graph.get_tensor_by_name("stage_2/gated_biases_summed:0")
-            print(sess.run(gated_biases_summed,feed_dict=feed_dict))
-           
-            print("Key (one per batch):")
-            key = sess.graph.get_tensor_by_name("stage_2/key:0")
-            print(sess.run(key,feed_dict=feed_dict))
-        
             print("Stage 2 position prediction = w*key + b (one per batch):")
             stage_2_out = sess.graph.get_tensor_by_name("stage_2/pos:0")
             print(sess.run(stage_2_out,feed_dict=feed_dict))
@@ -1048,7 +1034,7 @@ class RMI_simple(object):
         """
 
         # Do the same calculations found in self._setup_inference_stage1()
-        # and in self._setup_inference_stage1(), but use numpy instead of
+        # and in self._setup_inference_stage2(), but use numpy instead of
         # TensorFlow.
 
         keys = (keys - self._keys_mean) * self._keys_std_inverse
@@ -1063,15 +1049,16 @@ class RMI_simple(object):
         out = np.matmul(out,self.linear_w)
         out = np.add(out,self.linear_b)
 
-        out = np.add(out,0.5)
-        out = np.multiply(out,self._data_set.num_positions)
+        #out = np.add(out,0.5)
+        #out = np.multiply(out,self._data_set.num_positions)
 
         expert = np.multiply(out,self._expert_factor) 
         expert = expert.astype(np.int32) # astype() equivalent to floor() + casting
         expert = np.maximum(0,expert)
         expert = np.minimum(self.num_experts-1,expert)
+        expert = np.squeeze(expert, axis=1)
 
-        out = np.multiply(keys,self.stage_2_w[expert])
-        out = np.add(out,self.stage_2_b[expert])
+        out = np.sum(np.multiply(keys,self.stage_2_w[expert]), axis=1)
+        out = np.add(out,np.squeeze(self.stage_2_b[expert], axis=1))
         
         return (out, expert)
