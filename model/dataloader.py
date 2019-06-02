@@ -81,6 +81,7 @@ class DataSet(object):
         start = self._index_in_epoch
         self._index_in_epoch += batch_size
         if self._index_in_epoch > self._num_keys:
+            print("Epoch completed!!!")
             # Finished epoch
             self._epochs_completed += 1
             if shuffle:
@@ -133,7 +134,7 @@ def create_train_validate_test_data_sets(data_set, val_ratio, test_ratio):
     return data_sets
 
 
-def load_synthetic_data(data_path):
+def load_synthetic_data(data_path, normalized_label):
     #assume data from txt file is already sorted
     keys = []
     with open(data_path, 'r') as file:
@@ -142,5 +143,6 @@ def load_synthetic_data(data_path):
     num_keys = len(keys)
     keys = np.array(keys)
     positions = np.arange(num_keys).astype(float)
-    positions /= num_keys #normalize so that values lie in range [0, 1]
+    if normalized_label: #normalize so that values lie in range [0, 1]
+        positions /= num_keys
     return DataSet(keys=keys, positions=positions)

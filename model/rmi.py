@@ -294,7 +294,7 @@ class RMI_simple(object):
         # (and also increment the global step counter) as a single training step.
         train_op = optimizer.minimize(loss, global_step=global_step)
         
-        return train_op
+        return train_op, optimizer
 
 
     def _setup_inference_stage_2(self, keys, pos_stage_1):
@@ -349,7 +349,7 @@ class RMI_simple(object):
                                  + tf.range(num_batches) * self.num_experts)
             expert_index_flat = tf.identity(expert_index_flat, name="expert_index_flat")
 
-            # This version uses tf.unsroted_segment_sum
+            # This version uses tf.unsorted_segment_sum
             gates_flat = tf.unsorted_segment_sum(
                 tf.ones_like(expert_index_flat), 
                 expert_index_flat, 
@@ -442,16 +442,15 @@ class RMI_simple(object):
             # Add a scalar summary for the snapshot loss.
             tf.summary.scalar('loss', loss)
 
-            
-            # Create optimizer with the given learning rate.
-            # Uses AdamOptimizer, but others could be considered
-            # (e.g. see commented-out examples)
-            optimizer = tf.train.AdamOptimizer(self.learning_rates[1])
-            #optimizer = tf.train.AdadeltaOptimizer(self.learning_rates[1])
-            #optimizer = tf.train.GradientDescentOptimizer(self.learning_rates[1])
-
             # Create a variable to track the global step.
             global_step = tf.Variable(0, name='global_step', trainable=False)
+
+            # Create optimizer with the given learning rate.
+            # Uses AdamOptimizer, but others could be considered (e.g. see commented-out examples)
+            optimizer = tf.train.AdamOptimizer(self.learning_rates[1])
+            #learning_rate = tf.train.exponential_decay(self.learning_rates[1], global_step, 2000, 0.9, staircase=True)
+            #optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+            #tf.summary.scalar('lr', learning_rate)
 
             # Get list of variables needed to train stage 2
             variables_stage_2 = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='stage_2')
@@ -459,7 +458,7 @@ class RMI_simple(object):
             # (and also increment the global step counter) as a single training step.
             train_op = optimizer.minimize(loss, global_step=global_step, var_list=variables_stage_2)
 
-            return train_op
+            return train_op, optimizer
 
     
     def run_training(self, batch_sizes, max_steps, 
@@ -506,7 +505,7 @@ class RMI_simple(object):
             loss_s1 = self._setup_loss_stage_1(pos_stage_1, labels_placeholder)
             
             # Add to the Graph the Ops that calculate and apply gradients.
-            train_op_s1 = self._setup_training_stage_1(loss_s1)
+            train_op_s1, optimizer1 = self._setup_training_stage_1(loss_s1)
 
             # Currently no need for Summaries, but could add this later
             # Build the summary Tensor based on the TF collection of Summaries.
@@ -521,7 +520,7 @@ class RMI_simple(object):
             loss_s2 = self._setup_loss_stage_2(pos_stage_2, labels_placeholder)
             
             # Add to the Graph the Ops that calculate and apply gradients.
-            train_op_s2 = self._setup_training_stage_2(loss_s2)
+            train_op_s2, optimizer2 = self._setup_training_stage_2(loss_s2)
             
             
             ## Done with Stage definitions
@@ -545,7 +544,8 @@ class RMI_simple(object):
             sess.run(init)
             
             for epoch in xrange(epoch):
-                ## Train Stage 1 
+                print("\nEpoch:", epoch)
+		## Train Stage 1 
                 print("Stage 1 Training:")
                 
                 training_start_time = time.time()
@@ -622,6 +622,9 @@ class RMI_simple(object):
                     # if (step + 1) == self.max_steps[1]:
                 checkpoint_file = os.path.join(self.model_save_dir, 'stage_2.ckpt')
                 saver.save(sess, checkpoint_file)
+                #beta1_power, beta2_power = optimizer2._get_beta_accumulators()
+                #current_lr = (optimizer2._lr_t * tf.sqrt(1 - beta2_power) / (1 - beta1_power))
+                #print('Learning rate:', sess.run(current_lr))
 
 
     def _run_inference_tensorflow(self,keys):
