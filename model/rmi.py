@@ -1041,7 +1041,7 @@ class RMI_simple(object):
         # TensorFlow.
 
         keys = (keys - self._keys_mean) * self._keys_std_inverse
-        keys = keys * self._keys_norm_factor
+        #keys = keys * self._keys_norm_factor
 
         out = keys
         for layer_idx in range(0,len(self.hidden_layer_widths)):    

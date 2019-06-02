@@ -26,8 +26,11 @@ def get_stats(model, dataset, name, normalized_label):
 
 def train(args):
     print("training on:", args)
-    data_set = load_synthetic_data(args.data_dir, args.norm_label)
-    data_sets = create_train_validate_test_data_sets(data_set, VAL_RATIO, TEST_RATIO)
+    #data_set = load_synthetic_data(args.data_dir, args.norm_label)
+    #data_sets = create_train_validate_test_data_sets(data_set, VAL_RATIO, TEST_RATIO)
+    train_dataset = load_shuttle_data(args.data_dir + '.trn', args.norm_label)
+    validation_dataset = load_shuttle_data(args.data_dir + '.tst', args.norm_label)
+    data_sets = create_train_validate_data_sets(train_dataset, validation_dataset)
     model = RMI_simple(data_sets.train, hidden_layer_widths=args.hidden_width, num_experts=args.num_experts)
     max_steps = [data_sets.train.num_keys//b for b in args.batch_size]
     model.run_training(batch_sizes=args.batch_size, max_steps=max_steps,

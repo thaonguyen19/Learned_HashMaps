@@ -150,3 +150,30 @@ def load_synthetic_data(data_path, normalized_label):
     if normalized_label: #normalize so that values lie in range [0, 1]
         positions /= num_keys
     return DataSet(keys=keys, positions=positions)
+
+def load_shuttle_data(data_path, normalized_label):
+    #don't assume data from txt file is already sorted
+    keys = []
+    cnt = 0
+    with open(data_path, 'r') as file:
+        for line in file:
+            keys.append([float(x) for x in line.split()])
+            cnt += 1
+            if cnt == 1:
+                break
+    num_keys = len(keys)
+    keys = np.sort(np.array(keys), axis=0)
+    positions = np.arange(num_keys).astype(float)
+    if normalized_label: #normalize so that values lie in range [0, 1]
+        positions /= num_keys
+    return DataSet(keys=keys, positions=positions)
+
+def create_train_validate_data_sets(train_dataset, validation_dataset):
+    class DataSets(object):
+        pass
+
+    data_sets = DataSets()
+    data_sets.train = train_dataset
+    data_sets.validate = validation_dataset
+    #data_sets.test = test
+    return data_sets
