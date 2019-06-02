@@ -28,13 +28,17 @@ def train(args):
     print("training on:", args)
     data_set = load_synthetic_data(args.data_dir, args.norm_label)
     data_sets = create_train_validate_test_data_sets(data_set, VAL_RATIO, TEST_RATIO)
-    model = RMI_simple(data_sets.train, hidden_layer_widths=args.hidden_width, num_experts=args.num_experts)
+    standardize = True
+    if args.fix_inputs:
+        standardize = False
+    model = RMI_simple(data_sets.train, hidden_layer_widths=args.hidden_width, 
+                                num_experts=args.num_experts, standardize=standardize)
     max_steps = [data_sets.train.num_keys//b for b in args.batch_size]
     model.run_training(batch_sizes=args.batch_size, max_steps=max_steps,
                        learning_rates=args.lr, model_save_dir=args.model_save_dir, epoch=args.epoch)
     model.get_weights_from_trained_model()
 
-    print(data_sets.train.positions[:10])
+    print("positions:", data_sets.train.positions[:10])
     model.inspect_inference_steps(data_sets.train.keys[:10])
     model.calc_min_max_errors()
 
@@ -69,7 +73,8 @@ if __name__ == '__main__':
     parser.add_argument('-num_experts', type=int, default=10)
     parser.add_argument('-hidden_width', nargs='+', type=int, default=[16])
     parser.add_argument('-epoch', type=int, default=5)
-    parser.add_argument('-norm_label', action='store_true')
+    parser.add_argument('-norm_label', action='store_true', help='Whether to normalize labels to be within [0,1]')
+    parser.add_argument('-fix_inputs', action='store_true', help='Whether to keep input distribution the same and avoid standardization')
     args = parser.parse_args()
     #inference(args)
     train(args)

@@ -27,7 +27,7 @@ class RMI_simple(object):
         stage 2.
     """
 
-    def __init__(self, data_set, hidden_layer_widths=[16,16], num_experts=10):
+    def __init__(self, data_set, hidden_layer_widths=[16,16], num_experts=10, standardize=True):
         """Initializes the Recursive-index model
 
         Args:
@@ -46,6 +46,7 @@ class RMI_simple(object):
         self._data_set = data_set    
         self.hidden_layer_widths = hidden_layer_widths
         self.num_experts = num_experts
+        self.standardize = standardize
 
         # Decide which optimized inference function to use, based on
         # number of hidden layers.
@@ -184,8 +185,11 @@ class RMI_simple(object):
                 keys = tf.cast(keys,dtype=tf.float64)
                 
                 # Normalize using mean and standard deviation
-                keys_normed = tf.scalar_mul(tf.constant(1.0/keys_std),
+                if self.standardize:
+                    keys_normed = tf.scalar_mul(tf.constant(1.0/keys_std),
                                             tf.subtract(keys,tf.constant(keys_mean)))
+                else:
+                    keys_normed = keys
 
                 # Normalize further by dividing by 2*sqrt(3), so that
                 # a uniform distribution in the range [a,b] would transform
@@ -280,15 +284,16 @@ class RMI_simple(object):
         # Add a scalar summary for the snapshot loss.
         tf.summary.scalar('loss', loss)
 
+        # Create a variable to track the global step.
+        global_step = tf.Variable(0, name='global_step', trainable=False)
+
         # Create optimizer with the given learning rate.
         # AdamOptimizer is used, but other other optimizers could
         # have been chosen (e.g. the commented-out examples).
         optimizer = tf.train.AdamOptimizer(self.learning_rates[0])
-        #optimizer = tf.train.AdadeltaOptimizer(self.learning_rates[0])
-        #optimizer = tf.train.GradientDescentOptimizer(self.learning_rates[0])
+        #learning_rate = tf.train.exponential_decay(self.learning_rates[0], global_step, 2000, 0.95, staircase=True)
+        #optimizer = tf.train.GradientDescentOptimizer(learning_rate)
         
-        # Create a variable to track the global step.
-        global_step = tf.Variable(0, name='global_step', trainable=False)
         # Use the optimizer to apply the gradients that minimize the loss
         # (and also increment the global step counter) as a single training step.
         train_op = optimizer.minimize(loss, global_step=global_step)
@@ -319,8 +324,11 @@ class RMI_simple(object):
             keys = tf.cast(keys,dtype=tf.float64)
                 
             # Normalize using mean and standard deviation
-            keys_normed = tf.scalar_mul(tf.constant(1.0/keys_std),
+            if self.standardize:
+                keys_normed = tf.scalar_mul(tf.constant(1.0/keys_std),
                                         tf.subtract(keys,tf.constant(keys_mean)))
+            else:
+                keys_normed = keys
             
             # Normalize further by dividing by 2*sqrt(3), so that
             # a uniform distribution in the range [a,b] would transform
@@ -394,6 +402,8 @@ class RMI_simple(object):
             gated_biases = tf.identity(gated_biases, name="gated_biases")
 
             pos_stage_2 = tf.reduce_sum(tf.multiply(gated_weights, keys_normed), axis=1) + gated_biases
+            # if use logistic regression
+            #pos_stage_2 = tf.nn.sigmoid(pos_stage_2)
             pos_stage_2 = tf.identity(pos_stage_2, name="pos")
 
         # Returns the predicted position for Stage 2
@@ -442,9 +452,8 @@ class RMI_simple(object):
             # Create optimizer with the given learning rate.
             # Uses AdamOptimizer, but others could be considered (e.g. see commented-out examples)
             optimizer = tf.train.AdamOptimizer(self.learning_rates[1])
-            #learning_rate = tf.train.exponential_decay(self.learning_rates[1], global_step, 2000, 0.9, staircase=True)
+            #learning_rate = tf.train.exponential_decay(self.learning_rates[1], global_step, 2000, 0.95, staircase=True)
             #optimizer = tf.train.GradientDescentOptimizer(learning_rate)
-            #tf.summary.scalar('lr', learning_rate)
 
             # Get list of variables needed to train stage 2
             variables_stage_2 = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='stage_2')
@@ -1039,9 +1048,9 @@ class RMI_simple(object):
         # Do the same calculations found in self._setup_inference_stage1()
         # and in self._setup_inference_stage2(), but use numpy instead of
         # TensorFlow.
-
-        keys = (keys - self._keys_mean) * self._keys_std_inverse
-        keys = keys * self._keys_norm_factor
+        if self.standardize:
+            keys = (keys - self._keys_mean) * self._keys_std_inverse
+        #keys = keys * self._keys_norm_factor
 
         out = keys
         for layer_idx in range(0,len(self.hidden_layer_widths)):    
@@ -1063,5 +1072,7 @@ class RMI_simple(object):
 
         out = np.sum(np.multiply(keys,self.stage_2_w[expert]), axis=1)
         out = np.add(out,np.squeeze(self.stage_2_b[expert], axis=1))
+        #if use logistic regression
+        #out = 1/(1+np.exp(-out))
         
         return (out, expert)
