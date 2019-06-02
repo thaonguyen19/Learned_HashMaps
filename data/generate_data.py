@@ -11,19 +11,23 @@ def write_data_to_file(data, filename):
         f.write("\n")
 
 def generate_linear_data(a, b, noise=False):
-    data = [a*np.random.uniform() + b for _ in range(N)]
+    data = [a*np.random.uniform(-1000, 1000) + b for _ in range(N)]
     if noise:
         for i in range(N):
             data[i] += np.random.normal(0, 0.01)
     return np.expand_dims(np.array(data), axis=1)
 
 def generate_univariate_normal_data(mean, std):
-    data = np.random.normal(mean,std, N)
+    data = np.random.normal(mean, std, N)
     return np.expand_dims(data, axis=1)
 
 def generate_multivariate_normal_data(mean, cov):
     data = np.random.multivariate_normal(mean, cov, N)
     return data
+
+def generate_lognormal_data(mean, std):
+    data = np.random.lognormal(mean, std, N)
+    return np.expand_dims(data, axis=1)
 
 def main():
     np.random.seed(166)
@@ -32,6 +36,7 @@ def main():
     write_data_to_file(generate_univariate_normal_data(1, 1), "normal_mean=1_std=1.txt")
     write_data_to_file(generate_univariate_normal_data(2, 0.001), "normal_mean=2_std=0.001.txt")
     write_data_to_file(generate_univariate_normal_data(3, 0.00001), "normal_mean=3_std=0.00001.txt")
+    write_data_to_file(generate_lognormal_data(0, 0.25), "lognormal_mean=0_std=0.25.txt")
     write_data_to_file(generate_multivariate_normal_data([-1, 1], [[1, 0.5], [0.5, 1]]), "multivariate_normal1.txt")
     write_data_to_file(np.hstack((generate_multivariate_normal_data([1, 0], [[1, 0.2], [0.2, 1]]), \
                                   generate_linear_data(-2, 1), \
