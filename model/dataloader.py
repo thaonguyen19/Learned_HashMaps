@@ -120,9 +120,13 @@ def create_train_validate_test_data_sets(data_set, val_ratio, test_ratio):
     test_keys = keys[(num_train+num_val):]
     test_positions = positions[(num_train+num_val):]
 
-    train = DataSet(np.reshape(train_keys,[-1,1]), train_positions)
-    validation = DataSet(np.reshape(validation_keys,[-1,1]), validation_positions)
-    test = DataSet(np.reshape(test_keys,[-1,1]), test_positions)
+    #if len(train_keys.shape) == 1:
+    #    train = DataSet(np.reshape(train_keys,[-1,1]), train_positions)
+    #    validation = DataSet(np.reshape(validation_keys,[-1,1]), validation_positions)
+    #    test = DataSet(np.reshape(test_keys,[-1,1]), test_positions)
+    train = DataSet(train_keys, train_positions)
+    validation = DataSet(validation_keys, validation_positions)
+    test = DataSet(test_keys, test_positions)
 
     class DataSets(object):
         pass
@@ -139,7 +143,7 @@ def load_synthetic_data(data_path, normalized_label):
     keys = []
     with open(data_path, 'r') as file:
         for line in file:
-            keys.append(float(line.strip()))
+            keys.append([float(x) for x in line.split()])
     num_keys = len(keys)
     keys = np.array(keys)
     positions = np.arange(num_keys).astype(float)

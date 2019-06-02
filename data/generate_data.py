@@ -1,6 +1,6 @@
 import numpy as np
 
-N = 1000000
+N = 100000
 
 def write_data_to_file(data, filename):
     data = np.sort(data, axis=0)

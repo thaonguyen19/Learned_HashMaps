@@ -9,14 +9,17 @@ VAL_RATIO = 0.2
 TEST_RATIO = 0.2
 LOAD_FACTOR = 0.5
 
-def get_stats(model, dataset, name):
+def get_stats(model, dataset, name, normalized_label):
     N = len(dataset.keys)
     pred, _ = model._run_inference_tensorflow(dataset.keys)
     mse = np.sqrt(np.mean((pred - dataset.positions)**2))
     print(name + " loss: %.10f" % mse)
     num_buckets = int(N/LOAD_FACTOR)
     print("num buckets:", num_buckets)
-    unique_index = set([int(pred[i]/LOAD_FACTOR) for i in range(N)])
+    if normalized_label:
+        unique_index = set([int(pred[i]/LOAD_FACTOR) for i in range(N)])
+    else:
+        unique_index = set([int(num_buckets*pred[i]) for i in range(N)])
     num_collisions = N - len(unique_index)
     print(name + " number of collisions: %d" % num_collisions, " ratio: %.3f" % (num_collisions/N))
     return mse
@@ -31,16 +34,16 @@ def train(args):
                        learning_rates=args.lr, model_save_dir=args.model_save_dir, epoch=args.epoch)
     model.get_weights_from_trained_model()
 
-    #print(data_sets.train.positions[:10])
-    #model.inspect_inference_steps(data_sets.train.keys[:10])
-    #model.calc_min_max_errors()
+    print(data_sets.train.positions[:10])
+    model.inspect_inference_steps(data_sets.train.keys[:10])
+    model.calc_min_max_errors()
 
-    train_mse = get_stats(model, data_sets.train, 'Training')
-    val_mse = get_stats(model, data_sets.validate, 'Validation')
+    train_mse = get_stats(model, data_sets.train, 'Training', args.norm_label)
+    val_mse = get_stats(model, data_sets.validate, 'Validation', args.norm_label)
     return model, val_mse
 
 def inference(args):
-    best_params, best_model, best_mse = {}, None, 100
+    best_params, best_model, best_mse = {}, None, float("inf")
     for stage1_lr in [1e-4, 1e-3, 1e-2, 1e-1]:
         for stage2_lr in [1e-4, 1e-3, 1e-2, 1e-1]:
             for num_experts in [2, 4, 8, 16]:
