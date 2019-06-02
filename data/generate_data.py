@@ -1,6 +1,6 @@
 import numpy as np
 
-N = 100000
+N = 100
 
 def write_data_to_file(data, filename):
     data = np.sort(data, axis=0)
@@ -31,16 +31,17 @@ def generate_lognormal_data(mean, std):
 
 def main():
     np.random.seed(166)
-    write_data_to_file(generate_linear_data(2, 1), "linear_a=2_b=1.txt")
-    write_data_to_file(generate_linear_data(2, 1, True), "linear_a=2_b=1_noise.txt")
-    write_data_to_file(generate_univariate_normal_data(1, 1), "normal_mean=1_std=1.txt")
-    write_data_to_file(generate_univariate_normal_data(2, 0.001), "normal_mean=2_std=0.001.txt")
-    write_data_to_file(generate_univariate_normal_data(3, 0.00001), "normal_mean=3_std=0.00001.txt")
-    write_data_to_file(generate_lognormal_data(0, 0.25), "lognormal_mean=0_std=0.25.txt")
-    write_data_to_file(generate_multivariate_normal_data([-1, 1], [[1, 0.5], [0.5, 1]]), "multivariate_normal1.txt")
-    write_data_to_file(np.hstack((generate_multivariate_normal_data([1, 0], [[1, 0.2], [0.2, 1]]), \
-                                  generate_linear_data(-2, 1), \
-                                  generate_univariate_normal_data(2, 0.01))), "mixed1.txt")
+    #write_data_to_file(generate_linear_data(2, 1), "linear_a=2_b=1.txt")
+    #write_data_to_file(generate_linear_data(2, 1, True), "linear_a=2_b=1_noise.txt")
+    #write_data_to_file(generate_univariate_normal_data(1, 1), "normal_mean=1_std=1.txt")
+    #write_data_to_file(generate_univariate_normal_data(2, 0.001), "normal_mean=2_std=0.001.txt")
+    #write_data_to_file(generate_univariate_normal_data(3, 0.00001), "normal_mean=3_std=0.00001.txt")
+    #write_data_to_file(generate_lognormal_data(0, 0.25), "lognormal_mean=0_std=0.25.txt")
+    #write_data_to_file(generate_multivariate_normal_data([-1, 1], [[1, 0.5], [0.5, 1]]), "multivariate_normal1.txt")
+    #write_data_to_file(np.hstack((generate_multivariate_normal_data([1, 0], [[1, 0.2], [0.2, 1]]), \
+    #                              generate_linear_data(-2, 1), \
+    #                              generate_univariate_normal_data(2, 0.01))), "mixed1.txt")
+    write_data_to_file(generate_lognormal_data(0, 2), "lognormal_test.trn")
 
 if __name__ == "__main__":
     main()
