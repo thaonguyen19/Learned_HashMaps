@@ -56,7 +56,7 @@ class Murmur3HashTable:
             nBuckets += 1
             if self.hash_table[key] > 1:
                 nConflicts += 1
-        return float(nConflicts)/nBuckets
+        return float(nConflicts)/nBuckets, float(nConflicts)/self.num_buckets
 
 class BuiltInHashTable:
     def __init__(self, num_buckets, floats = False):
@@ -105,7 +105,7 @@ class BuiltInHashTable:
             nBuckets += 1
             if self.hash_table[key] > 1:
                 nConflicts += 1
-        return float(nConflicts)/nBuckets
+        return float(nConflicts)/nBuckets, float(nConflicts)/self.num_buckets
 
 class PolyHashTable:
     def __init__(self, num_buckets, inp_dimensions):
@@ -154,7 +154,7 @@ class PolyHashTable:
             nBuckets += 1
             if self.hash_table[key] > 1:
                 nConflicts += 1
-        return float(nConflicts)/nBuckets
+        return float(nConflicts)/nBuckets, float(nConflicts)/self.num_buckets
     
 class HashTable:
     def __init__(self, hash_size, inp_dimensions):
@@ -207,5 +207,5 @@ class HashTable:
             nBuckets += 1
             if self.hash_table[key] > 1:
                 nConflicts += 1
-        return float(nConflicts)/nBuckets
+        return float(nConflicts)/nBuckets, float(nConflicts)/(2 ** self.hash_size)
 

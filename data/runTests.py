@@ -41,7 +41,7 @@ def runMurmur(name, fileName, buckets, floats, i):
 		hashtable.__setitem__(arr)
 	f.close()
 	# hashtable.makeDict(name)
-	print(str(name) + ' with Murmur: ' + str(hashtable.conflicts()))
+	print(str(name) + ' with Murmur: ' + str(hashtable.conflicts()[0]) + ' and ' + str(hashtable.conflicts()[1]))
 
 def runBuiltIn(name, fileName, buckets, floats, i):
 	hashtable = BuiltInHashTable(buckets, floats)
@@ -56,7 +56,7 @@ def runBuiltIn(name, fileName, buckets, floats, i):
 		hashtable.__setitem__(arr)
 	f.close()
 	# hashtable.makeDict(name)
-	print(str(name) + ' with BuiltIn: ' + str(hashtable.conflicts()))
+	print(str(name) + ' with BuiltIn: ' + str(hashtable.conflicts()[0]) + ' and ' + str(hashtable.conflicts()[1]))
 
 def runPoly(name, fileName, buckets, floats, i):
 	hashtable = PolyHashTable(buckets, dimensions[i])
@@ -71,7 +71,7 @@ def runPoly(name, fileName, buckets, floats, i):
 		hashtable.__setitem__(arr)
 	f.close()
 	# hashtable.makeDict(name)
-	print(str(name) + ' with Poly: ' + str(hashtable.conflicts()))
+	print(str(name) + ' with Poly: ' + str(hashtable.conflicts()[0]) + ' and ' + str(hashtable.conflicts()[1]))
 
 def runHash(name, fileName, buckets, floats, i):
 	hashtable = HashTable(logN(buckets), dimensions[i])
@@ -86,7 +86,7 @@ def runHash(name, fileName, buckets, floats, i):
 		hashtable.__setitem__(arr)
 	f.close()
 	# hashtable.makeDict(name)
-	print(str(name) + ' with Normal: ' + str(hashtable.conflicts()))
+	print(str(name) + ' with Normal: ' + str(hashtable.conflicts()[0]) + ' and ' + str(hashtable.conflicts()[1]))
 
 
 def runHashes(name, fileName, buckets, floats, i):
