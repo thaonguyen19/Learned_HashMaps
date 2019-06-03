@@ -4,21 +4,122 @@
 import numpy as np
 import random
 import math
+import hashlib
+import functools
+import mmh3
+
+class Murmur3HashTable:
+    def __init__(self, num_buckets, floats = False):
+        self.hash_function = functools.partial(mmh3.hash, seed = 1)
+        self.num_buckets = num_buckets
+        self.hash_table = dict()
+        self.floats = floats
+
+    def generate_hash(self, inp_vector):
+        inp_str = ''
+        if self.floats:
+            inp_str = ','.join(['{:.10f}'.format(x) for x in inp_vector])
+        else:
+            inp_str = ','.join(map(str, inp_vector))
+        return self.hash_function(inp_str) % self.num_buckets
+
+    def __setitem__(self, inp_vec):
+        hash_value = self.generate_hash(inp_vec)
+        if hash_value in self.hash_table:
+            self.hash_table[hash_value] = self.hash_table[hash_value] + 1
+        else:
+            self.hash_table[hash_value] = 1
+
+    def makeDict(self, name):
+        f = open('dict_murmur_' + name + '.txt', "w")
+        maxKey = 0
+        maxKeyNum = 0
+        for key in self.hash_table.keys():
+            f.write(str(key) + ' : ' + str(self.hash_table[key]) + '\n')
+            if maxKeyNum < self.hash_table[key]:
+                maxKey = key
+                maxKeyNum = self.hash_table[key]
+        f.close()
+        # print(str(maxKey) + ' ' + str(maxKeyNum))
+
+    def __getitem__(self, inp_vec):
+        hash_value = self.generate_hash(inp_vec)
+        if hash_value in self.hash_table:
+            return self.hash_table[hash_value]
+        else:
+            return 0
+
+    def conflicts(self):
+        nConflicts = 0
+        nBuckets = 0
+        for key in self.hash_table.keys():
+            nBuckets += 1
+            if self.hash_table[key] > 1:
+                nConflicts += 1
+        return float(nConflicts)/nBuckets
+
+class BuiltInHashTable:
+    def __init__(self, num_buckets, floats = False):
+        self.num_buckets = num_buckets
+        self.hash_table = dict()
+        self.floats = floats
+
+    def generate_hash(self, inp_vector):
+        inp_str = ''
+        if self.floats:
+            inp_str = ','.join(['{:.10f}'.format(x) for x in inp_vector])
+        else:
+            inp_str = ','.join(map(str, inp_vector))
+        return int(hashlib.md5(inp_str.encode('utf-8')).hexdigest(), 16) % self.num_buckets
+
+    def __setitem__(self, inp_vec):
+        hash_value = self.generate_hash(inp_vec)
+        if hash_value in self.hash_table:
+            self.hash_table[hash_value] = self.hash_table[hash_value] + 1
+        else:
+            self.hash_table[hash_value] = 1
+
+    def makeDict(self, name):
+        f = open('dict_builtin_' + name + '.txt', "w")
+        maxKey = 0
+        maxKeyNum = 0
+        for key in self.hash_table.keys():
+            f.write(str(key) + ' : ' + str(self.hash_table[key]) + '\n')
+            if maxKeyNum < self.hash_table[key]:
+                maxKey = key
+                maxKeyNum = self.hash_table[key]
+        f.close()
+        # print(str(maxKey) + ' ' + str(maxKeyNum))
+
+    def __getitem__(self, inp_vec):
+        hash_value = self.generate_hash(inp_vec)
+        if hash_value in self.hash_table:
+            return self.hash_table[hash_value]
+        else:
+            return 0
+
+    def conflicts(self):
+        nConflicts = 0
+        nBuckets = 0
+        for key in self.hash_table.keys():
+            nBuckets += 1
+            if self.hash_table[key] > 1:
+                nConflicts += 1
+        return float(nConflicts)/nBuckets
 
 class PolyHashTable:
-    def __init__(self, hash_size, inp_dimensions):
+    def __init__(self, num_buckets, inp_dimensions):
         random.seed(137)
-        self.hash_size = hash_size
+        self.num_buckets = num_buckets
         self.inp_dimensions = inp_dimensions
         self.hash_table = dict()
-        self.kLargePrime = (2 ** 17) - 1
-        self.coef = random.randint(0, self.kLargePrime)
+        self.coef = random.randint(0, self.num_buckets)
 
     def generate_hash(self, inp_vector):
         num = 0.0
         for i in range(self.inp_dimensions):
             num += ((self.coef ** (self.inp_dimensions - i - 1))*inp_vector[i])
-        return str(int(math.fmod(abs(num), self.kLargePrime)))
+        return str(int(math.fmod(abs(num), self.num_buckets)))
 
     def __setitem__(self, inp_vec, label='added'):
         hash_value = self.generate_hash(inp_vec)
@@ -37,7 +138,7 @@ class PolyHashTable:
                 maxKey = key
                 maxKeyNum = self.hash_table[key]
         f.close()
-        print(str(maxKey) + ' ' + str(maxKeyNum))
+        # print(str(maxKey) + ' ' + str(maxKeyNum))
         
     def __getitem__(self, inp_vec):
         hash_value = self.generate_hash(inp_vec)
@@ -46,59 +147,14 @@ class PolyHashTable:
         else:
             return 0
 
-# class PolyHashTableMult:
-#     def __init__(self, hash_size, inp_dimensions, poly_dim):
-#         self.hash_size = hash_size
-#         self.inp_dimensions = inp_dimensions
-#         self.hash_table = dict()
-#         self.poly_dim = poly_dim
-#         self.kLargePrime = (2 ** int(17 / inp_dimensions + 3)) - 1
-
-#     def polyHash(self, key):
-#         coef = [0 for i in range(self.poly_dim)]
-#         for i in range(self.poly_dim):
-#             coef[i] = self.randFieldElem(i)
-#         num = 0.0
-#         for i in range(self.poly_dim):
-#             num += ((key **(self.poly_dim - i - 1))*coef[i])
-#         return int(math.fmod(abs(num), self.kLargePrime))
-
-#     def generate_hash(self, inp_vector):
-#         nums = [self.polyHash(inp_vector[i]) for i in range(self.inp_dimensions)]
-#         hashes = (np.asarray(nums)).astype('int')
-#         return ','.join(hashes.astype('str'))
-
-#     def randFieldElem(self, f):
-#         random.seed(f + 137)
-#         return random.randint(0, self.kLargePrime)
-
-#     def __setitem__(self, inp_vec, label='added'):
-#         hash_value = self.generate_hash(inp_vec)
-#         if hash_value in self.hash_table:
-#             self.hash_table[hash_value] = self.hash_table[hash_value] + 1
-#         else:
-#             self.hash_table[hash_value] = 1
-#         # self.hash_table[hash_value] = self.hash_table\
-#             # .get(hash_value, list()) + [label]
-
-#     def makeDict(self, name):
-#         f = open('dict_' + name + '.txt', "w")
-#         maxKey = 0
-#         maxKeyNum = 0
-#         for key in self.hash_table.keys():
-#             f.write(str(key) + ' : ' + str(self.hash_table[key]) + '\n')
-#             if maxKeyNum < self.hash_table[key]:
-#                 maxKey = key
-#                 maxKeyNum = self.hash_table[key]
-#         f.close()
-#         print(str(maxKey) + ' ' + str(maxKeyNum))
-        
-#     def __getitem__(self, inp_vec):
-#         hash_value = self.generate_hash(inp_vec)
-#         if hash_value in self.hash_table:
-#             return self.hash_table[hash_value]
-#         else:
-#             return 0
+    def conflicts(self):
+        nConflicts = 0
+        nBuckets = 0
+        for key in self.hash_table.keys():
+            nBuckets += 1
+            if self.hash_table[key] > 1:
+                nConflicts += 1
+        return float(nConflicts)/nBuckets
     
 class HashTable:
     def __init__(self, hash_size, inp_dimensions):
@@ -123,9 +179,15 @@ class HashTable:
 
     def makeDict(self, name):
         f = open('dict_' + name + '.txt', "w")
+        maxKey = 0
+        maxKeyNum = 0
         for key in self.hash_table.keys():
             f.write(str(key) + ' : ' + str(self.hash_table[key]) + '\n')
+            if maxKeyNum < self.hash_table[key]:
+                maxKey = key
+                maxKeyNum = self.hash_table[key]
         f.close()
+        # print(str(maxKey) + ' ' + str(maxKeyNum))
         
     def __getitem__(self, inp_vec):
         hash_value = self.generate_hash(inp_vec)
@@ -138,21 +200,12 @@ class HashTable:
     def getProjections(self):
         return self.projections
 
-class LSH:
-    def __init__(self, num_tables, hash_size, inp_dimensions):
-        self.num_tables = num_tables
-        self.hash_size = hash_size
-        self.inp_dimensions = inp_dimensions
-        self.hash_tables = list()
-        for i in range(self.num_tables):
-            self.hash_tables.append(HashTable(self.hash_size, self.inp_dimensions))
-    
-    def __setitem__(self, inp_vec, label):
-        for table in self.hash_tables:
-            table[inp_vec] = label
-    
-    def __getitem__(self, inp_vec):
-        results = list()
-        for table in self.hash_tables:
-            results.extend(table[inp_vec])
-        return list(set(results))
+    def conflicts(self):
+        nConflicts = 0
+        nBuckets = 0
+        for key in self.hash_table.keys():
+            nBuckets += 1
+            if self.hash_table[key] > 1:
+                nConflicts += 1
+        return float(nConflicts)/nBuckets
+
