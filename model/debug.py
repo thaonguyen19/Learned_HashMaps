@@ -9,27 +9,34 @@ TEST_RATIO = 0.2
 LOAD_FACTOR = 0.5
 
 def train(args):
-    # data_set = load_synthetic_data(args.data_dir, args.norm_label)
-    # data_sets = create_train_validate_test_data_sets(data_set, VAL_RATIO, TEST_RATIO)
-    train_dataset = load_shuttle_data(args.data_dir + '.trn', args.norm_label)
-    validation_dataset = load_shuttle_data(args.data_dir + '.tst', args.norm_label)
-    data_sets = create_train_validate_data_sets(train_dataset, validation_dataset)
+    data_set = load_synthetic_data(args.data_dir, args.norm_label)
+    data_sets = create_train_validate_test_data_sets(data_set, VAL_RATIO, TEST_RATIO, scale=args.scale)
+    #train_dataset = load_shuttle_data(args.data_dir + '.trn', args.norm_label)
+    #validation_dataset = load_shuttle_data(args.data_dir + '.tst', args.norm_label)
+    #data_sets = create_train_validate_data_sets(train_dataset, validation_dataset)
     max_step = data_sets.train.num_keys//args.batch_size
+    print(data_sets.train.num_keys)
 
     keys_placeholder = tf.placeholder(tf.float64, shape=(None, data_sets.train.key_size), name="keys")
     labels_placeholder = tf.placeholder(tf.float64, shape=(None), name="labels")
 
-    n_hidden = 32
-    keys_norm = (keys_placeholder - data_sets.train.keys_mean)/data_sets.train.keys_std
-    # W1 = tf.Variable(tf.truncated_normal([data_sets.train.key_size, n_hidden], stddev=1.0 / math.sqrt(float(data_sets.train.key_size + n_hidden)), dtype=tf.float64), dtype=tf.float64)
-    # b1 = tf.Variable(tf.zeros([n_hidden], dtype=tf.float64), dtype=tf.float64)
-    # W2 = tf.Variable(tf.truncated_normal([n_hidden, 1], stddev=1.0 / math.sqrt(float(n_hidden + 1)), dtype=tf.float64), dtype=tf.float64)
-    # b2 = tf.Variable(tf.zeros([1], dtype=tf.float64), dtype=tf.float64)
-    # h = tf.nn.relu(tf.matmul(keys_placeholder, W1) + b1)
+    n_hidden = 16
+    keys_norm = keys_placeholder 
+    if not args.fix_inputs:
+        print("Standardizing data...")
+        keys_norm = (keys_placeholder - data_sets.train.keys_mean)/data_sets.train.keys_std
+    #W1 = tf.Variable(tf.truncated_normal([data_sets.train.key_size, n_hidden], stddev=1.0 / math.sqrt(float(data_sets.train.key_size + n_hidden)), dtype=tf.float64), dtype=tf.float64)
+    #b1 = tf.Variable(tf.zeros([n_hidden], dtype=tf.float64), dtype=tf.float64)
+    #W2 = tf.Variable(tf.truncated_normal([n_hidden, 1], stddev=1.0 / math.sqrt(float(n_hidden + 1)), dtype=tf.float64), dtype=tf.float64)
+    #b2 = tf.Variable(tf.zeros([1], dtype=tf.float64), dtype=tf.float64)
+    #h = tf.nn.relu(tf.matmul(keys_placeholder, W1) + b1)
+    #preds = tf.matmul(h, W2) + b2
+    #h = tf.nn.sigmoid(tf.matmul(keys_placeholder, W1) + b1)
+    #preds = tf.matmul(h, W2) + b2
+
     h1 = tf.layers.dense(inputs=keys_norm, units=n_hidden, activation=tf.nn.relu)
     h2 = tf.layers.dense(inputs=h1, units=n_hidden, activation=tf.nn.relu)
     preds = tf.layers.dense(inputs=h2, units=1)
-    # preds = tf.matmul(h, W2) + b2
 
     loss = tf.losses.mean_squared_error(labels=labels_placeholder, predictions=preds)
     optimizer = tf.train.AdamOptimizer(args.lr)
@@ -48,9 +55,11 @@ def train(args):
                 feed_dict = {keys_placeholder: keys_feed, labels_placeholder: labels_feed}
                 _, thao = sess.run([train_op, loss], feed_dict=feed_dict)
                 keyss, pred = sess.run([keys_norm, preds], feed_dict=feed_dict)
-                print(keyss)
+                diff = np.mean(np.abs(pred - labels_feed)/args.scale)
                 if (step+1) == 1:
-                    print('Step %d: loss = %.10f' % (step, np.sqrt(thao)))
+                    #print((labels_feed//args.scale).T)
+                    #print(pred.T)
+                    print('Step %d: loss = %.10f, diff = %.5f' % (step, np.sqrt(thao), diff))
             
 
 if __name__ == '__main__':
@@ -62,6 +71,6 @@ if __name__ == '__main__':
     parser.add_argument('-epoch', type=int, default=5)
     parser.add_argument('-norm_label', action='store_true', help='Whether to normalize labels to be within [0,1]')
     parser.add_argument('-fix_inputs', action='store_true', help='Whether to keep input distribution the same and avoid standardization')
+    parser.add_argument('-scale', type=int, default=1, help='how much to scale the gap between consecutive positions')
     args = parser.parse_args()
-    #inference(args)
     train(args)
