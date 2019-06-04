@@ -4,16 +4,24 @@ import tensorflow_lattice as tfl
 import logging
 logging.getLogger().setLevel(logging.INFO)
 from collections import defaultdict, Counter
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import sys
+import shutil
+import argparse
+import os
 
-data_dir = sys.argv[1]
-USING_LATTICE = False
-NUM_FEATURES = 9
+global data_dir
+data_dir = './'
+global num_features
+num_features = 9
+global use_lattice
+use_lattice = True
+global lr
+lr = 0.001
+
 output_dir = "results/"
 quantiles_dir = "quantiles/"
-
-CSV_COLUMNS = ["feature" + str(i) for i in range(1, NUM_FEATURES + 1)] + ["value"]
+CSV_COLUMNS = ["feature" + str(i) for i in range(1, num_features + 1)] + ["value"]
 
 def get_test_input_fn():
   return get_input_fn(data_dir + ".test", batch_size=10000, num_epochs=1, shuffle=False)
@@ -42,11 +50,13 @@ def get_input_fn(file_path, batch_size, num_epochs, shuffle):
 
 def create_feature_columns():
   # Categorical features.
-  return [tf.feature_column.numeric_column("feature" + str(i)) for i in range(1, NUM_FEATURES + 1)]
+  print("Num features:", num_features)
+  return [tf.feature_column.numeric_column("feature" + str(i)) for i in range(1, num_features + 1)]
 
 def create_quantiles(quantiles_dir):
     """Creates quantiles directory if it doesn't yet exist."""
     input_fn = get_test_input_fn()
+    print(create_feature_columns())
     tfl.save_quantiles_for_keypoints(
         input_fn=input_fn,
         save_dir=quantiles_dir,
@@ -58,7 +68,7 @@ def create_calibrated_linear(feature_columns, config, quantiles_dir):
     hparams = tfl.CalibratedLinearHParams(
                 feature_names=feature_names,
                 num_keypoints=200,
-                learning_rate=0.001)
+                learning_rate=lr)
     hparams.set_feature_param("feature1", "monotonicity", 1)
     return tfl.calibrated_linear_regressor(
             feature_columns=feature_columns,
@@ -67,14 +77,32 @@ def create_calibrated_linear(feature_columns, config, quantiles_dir):
             hparams=hparams,
             quantiles_dir=quantiles_dir)
 
+def create_calibrated_rtl(feature_columns, config, quantiles_dir):
+  feature_names = [fc.name for fc in feature_columns]
+  hparams = tfl.CalibratedRtlHParams(
+      feature_names=feature_names,
+      num_keypoints=200,
+      learning_rate=lr,
+      lattice_l2_laplacian_reg=5.0e-4,
+      lattice_l2_torsion_reg=1.0e-4,
+      lattice_size=2,
+      lattice_rank=4,
+      num_lattices=10)
+  return tfl.calibrated_rtl_classifier(
+      feature_columns=feature_columns,
+      model_dir=config.model_dir,
+      config=config,
+      hparams=hparams,
+      quantiles_dir=quantiles_dir)
+
 def create_calibrated_lattice(feature_columns, config, quantiles_dir):
     feature_names = [fc.name for fc in feature_columns]
     hparams = tfl.CalibratedLatticeHParams(
                 feature_names=feature_names,
-                num_keypoints=20000,
-                lattice_l2_laplacian_reg=1e-2,
-                lattice_l2_torsion_reg=1e-2,
-                learning_rate=0.00001,
+                num_keypoints=200,
+                lattice_l2_laplacian_reg=5e-4,
+                lattice_l2_torsion_reg=1e-4,
+                learning_rate=lr,
                 lattice_size=2)
     hparams.set_feature_param("feature1", "monotonicity", 1)
     return tfl.calibrated_lattice_classifier(
@@ -87,7 +115,7 @@ def create_calibrated_lattice(feature_columns, config, quantiles_dir):
 def create_estimator(config, quantiles_dir):
     """Creates estimator for given configuration based on --model_type."""
     feature_columns = create_feature_columns()
-    if USING_LATTICE:
+    if use_lattice:
         return create_calibrated_lattice(feature_columns, config, quantiles_dir)
     else:
         return create_calibrated_linear(feature_columns, config, quantiles_dir)
@@ -96,7 +124,7 @@ def calculate_collision_rate(estimator, input_fn, N):
     results = estimator.predict(input_fn=input_fn)
     buckets = defaultdict(int)
     for result in results:
-        if USING_LATTICE:
+        if use_lattice:
             bucket = min(N - 1, max(0, int(result['logistic'][0]*N)))
         else:
             bucket = min(N - 1, max(0, int(result['predictions'][0]*N)))
@@ -111,13 +139,13 @@ def calculate_collision_rate(estimator, input_fn, N):
         if buckets[i] > 0:
             buckets_used += 1
             cnt[buckets[i]] += 1
-            #print("bucket %d, number of entries: %d" % (i, buckets[i]))
+            print("bucket %d, number of entries: %d" % (i, buckets[i]))
 
     print("collision rate:", num_collisions/buckets_used)
     print("average number of entries in a bad bucket:", avg/num_collisions)
     print(cnt)
 
-def main():
+def main(args):
     create_quantiles(quantiles_dir)
 
     # Create config and then model.
@@ -133,5 +161,19 @@ def main():
         #calculate_collision_rate(estimator, get_val_input_fn(), 20000)
         print("test stats:")
         calculate_collision_rate(estimator, get_test_input_fn(), 20000)
-    
-main()
+  
+
+parser = argparse.ArgumentParser(description='Training')
+parser.add_argument('-data_dir')
+parser.add_argument('-num_features', type=int, default=1)
+parser.add_argument('-lr', type=float, default=0.001)
+parser.add_argument('-use_lattice', action='store_true')
+args = parser.parse_args()
+
+data_dir = args.data_dir
+num_features = args.num_features
+use_lattice = args.use_lattice
+lr = args.lr
+if os.path.exists(output_dir):
+  shutil.rmtree(output_dir)
+main(args)
