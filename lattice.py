@@ -3,11 +3,11 @@ import tensorflow as tf
 import tensorflow_lattice as tfl
 import logging
 logging.getLogger().setLevel(logging.INFO)
-from collections import defaultdict
+from collections import defaultdict, Counter
 import matplotlib.pyplot as plt
+import sys
 
-train_dir = "data_lattice/linear.train"
-test_dir = "data_lattice/linear.test"
+data_dir = sys.argv[1]
 output_dir = "results/"
 quantiles_dir = "quantiles/"
 
@@ -15,11 +15,14 @@ CSV_COLUMNS = [
     "feature1", "value"
 ]
 
-def get_test_input_fn(batch_size, num_epochs, shuffle):
-  return get_input_fn(test_dir, batch_size, num_epochs, shuffle)
+def get_test_input_fn():
+  return get_input_fn(data_dir + ".test", batch_size=10000, num_epochs=1, shuffle=False)
 
-def get_train_input_fn(batch_size, num_epochs, shuffle):
-  return get_input_fn(train_dir, batch_size, num_epochs, shuffle)
+def get_val_input_fn():
+  return get_input_fn(data_dir + ".val", batch_size=10000, num_epochs=1, shuffle=False)
+    
+def get_train_input_fn(batch_size=10000, num_epochs=1, shuffle=False):
+  return get_input_fn(data_dir + ".train", batch_size, num_epochs, shuffle)
 
 def get_input_fn(file_path, batch_size, num_epochs, shuffle):
   df_data = pd.read_csv(
@@ -43,10 +46,7 @@ def create_feature_columns():
 
 def create_quantiles(quantiles_dir):
     """Creates quantiles directory if it doesn't yet exist."""
-    batch_size = 10000
-    input_fn = get_test_input_fn(
-        batch_size=batch_size, num_epochs=1, shuffle=False)
-    # Reads until input is exhausted, 10000 at a time.
+    input_fn = get_test_input_fn()
     tfl.save_quantiles_for_keypoints(
         input_fn=input_fn,
         save_dir=quantiles_dir,
@@ -55,13 +55,17 @@ def create_quantiles(quantiles_dir):
 
 def create_calibrated_linear(feature_columns, config, quantiles_dir):
     feature_names = [fc.name for fc in feature_columns]
-    hparams = tfl.CalibratedLinearHParams(feature_names=feature_names)
+    hparams = tfl.CalibratedLinearHParams(
+                feature_names=feature_names,
+                num_keypoints=200,
+                learning_rate=0.01)
+    hparams.set_feature_param("feature1", "monotonicity", 1)
     return tfl.calibrated_linear_regressor(
-        feature_columns=feature_columns,
-        model_dir=config.model_dir,
-        config=config,
-        hparams=hparams,
-        quantiles_dir=quantiles_dir)
+            feature_columns=feature_columns,
+            model_dir=config.model_dir,
+            config=config,
+            hparams=hparams,
+            quantiles_dir=quantiles_dir)
 
 def create_estimator(config, quantiles_dir):
     """Creates estimator for given configuration based on --model_type."""
@@ -72,29 +76,23 @@ def calculate_collision_rate(estimator, input_fn, N):
     results = estimator.predict(input_fn=input_fn)
     buckets = defaultdict(int)
     for result in results:
-        bucket = int(result['predictions'][0]*N)
-        if bucket < 0:
-            bucket = 0
-        if bucket > N - 1:
-            bucket = N - 1
+        bucket = min(N - 1, max(0, int(result['predictions'][0]*N)))
         buckets[bucket] += 1
-    num_collisions = 0
-    x, y = [], []
-    avg = 0
+
+    num_collisions, buckets_used, avg = 0, 0, 0
+    cnt = Counter()
     for i in range(N):
         if buckets[i] > 1:
             num_collisions += 1
             avg += buckets[i]
         if buckets[i] > 0:
-            print("bucket %d, number of entries: %d" % (i, buckets[i]))
-        x.append(i)
-        y.append(buckets[i])
-    print("collision rate:", num_collisions/N)
+            buckets_used += 1
+            cnt[buckets[i]] += 1
+            #print("bucket %d, number of entries: %d" % (i, buckets[i]))
+
+    print("collision rate:", num_collisions/buckets_used)
     print("average number of entries in a bad bucket:", avg/num_collisions)
-    #plt.bar(x, y)
-    #plt.xlabel("bucket number")
-    #plt.ylabel("number of elements")
-    #plt.savefig("normal2.png")
+    print(cnt)
 
 def main():
     create_quantiles(quantiles_dir)
@@ -102,9 +100,15 @@ def main():
     # Create config and then model.
     config = tf.estimator.RunConfig().replace(model_dir=output_dir)
     estimator = create_estimator(config, quantiles_dir)
-    
-    estimator.train(input_fn=get_train_input_fn(batch_size=64, num_epochs=10, shuffle=True))
-    calculate_collision_rate(estimator, get_train_input_fn(batch_size=10000, num_epochs=1, shuffle=False), 60000)
-    calculate_collision_rate(estimator, get_test_input_fn(batch_size=10000, num_epochs=1, shuffle=False), 20000)
+   
+    for epoch in range(5):
+        print("Epoch %d" % epoch)
+        estimator.train(input_fn=get_train_input_fn(batch_size=64, num_epochs=1, shuffle=True))
+        print("training stats:")
+        calculate_collision_rate(estimator, get_train_input_fn(), 60000)
+        print("validation stats:")
+        calculate_collision_rate(estimator, get_val_input_fn(), 20000)
+        print("test stats:")
+        calculate_collision_rate(estimator, get_test_input_fn(), 20000)
     
 main()
