@@ -15,6 +15,7 @@ USING_LATTICE = False
 NUM_FEATURES = 1
 output_dir = "results/"
 quantiles_dir = "quantiles/"
+num_experts = 20
 
 CSV_COLUMNS = ["feature" + str(i) for i in range(1, NUM_FEATURES + 1)] + ["value"]
 
@@ -126,11 +127,11 @@ def calculate_collision_rate(estimator, input_fn, extension, N):
             bucket = min(N - 1, max(0, int(result['predictions'][0]*N)))
         buckets[bucket] += 1
 
-    expert_data = [[] for _ in range(10)]
+    expert_data = [[] for _ in range(num_experts)]
     for row in data:
-        expert = int(row[1]*10)
+        expert = int(row[1]*num_experts)
         expert_data[expert].append(row)
-    for expert in range(10):
+    for expert in range(num_experts):
         output = open(data_dir + "_expert" + str(expert) + extension, "w")
         output.write(header + "\n")
         for row in expert_data[expert]:
@@ -177,10 +178,10 @@ def main():
     calculate_collision_rate(estimator, get_test_input_fn(), ".test", 20000)
     
     train_buckets, test_buckets = defaultdict(int), defaultdict(int)
-    final_output = open("final_predictions.txt", "w")
-    for expert in range(10):
+    final_output = open("normal_pred.txt", "w")
+    for expert in range(num_experts):
         cur_estimator = create_estimator(config, quantiles_dir)
-        cur_estimator.train(input_fn=get_train_expert_input_fn(expert, batch_size=32, num_epochs=1, shuffle=True))
+        cur_estimator.train(input_fn=get_train_expert_input_fn(expert, batch_size=16, num_epochs=5, shuffle=True))
 
         results = cur_estimator.predict(input_fn=get_train_expert_input_fn(expert))
         N = 60000
@@ -237,7 +238,7 @@ def main():
     plt.bar(x, y)
     plt.xlabel("Number of Elements in a Bucket")
     plt.ylabel("Number of Buckets")
-    plt.title("Element Distribution in Buckets for Learned Index: lognormal.test")
-    plt.savefig("lognormal.png")
+    plt.title("Element Distribution in Buckets for Learned Index: normal.test")
+    plt.savefig("normal.png")
 
 main()

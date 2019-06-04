@@ -14,9 +14,9 @@ def write_data_to_file(data, value, filename):
         f.write(",".join(["%.10f" % data[i][j] for j in range(data.shape[1])] + ["%.10f" % value[i]]) + "\n")
 
 if name == "linear":
-    data = np.random.uniform(-1000, 1000, size=N)
+    data = np.random.uniform(-5, 5, size=N)
 elif name == "normal":
-    data = np.random.normal(10, 0.0001, size=N)
+    data = np.random.normal(0, 0.0001, size=N)
 elif name == "lognormal":
     data = np.random.lognormal(0, 2, size=N)
 elif name == "multivariate":
