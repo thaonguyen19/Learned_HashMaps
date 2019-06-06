@@ -101,7 +101,7 @@ class DataSet(object):
         self._index_in_epoch = 0
         
 
-def create_train_validate_test_data_sets(data_set, val_ratio, test_ratio):
+def create_train_validate_test_data_sets(data_set, val_ratio, test_ratio, scale=None):
     """Creates training and validation data sets.
     """
     #Shuffle the keys and positions by same permutation
@@ -109,6 +109,8 @@ def create_train_validate_test_data_sets(data_set, val_ratio, test_ratio):
     np.random.shuffle(perm)
     keys = data_set.keys[perm]
     positions = data_set.positions[perm]
+    if scale is not None:
+        positions *= scale
     num_val = int(data_set.num_keys * val_ratio)
     num_test = int(data_set.num_keys * test_ratio)
     num_train = data_set.num_keys - num_val - num_test
@@ -148,8 +150,13 @@ def load_synthetic_data(data_path, normalized_label):
     keys = np.array(keys)
     positions = np.arange(num_keys).astype(float)
     if normalized_label: #normalize so that values lie in range [0, 1]
+        print("Normalizing labels to be between [0,1]")
         positions /= num_keys
+    #test with arbitrary labels
+    #positions = np.random.random_sample(positions.shape)
+    #print('New positions:', positions)
     return DataSet(keys=keys, positions=positions)
+
 
 def load_shuttle_data(data_path, normalized_label):
     #don't assume data from txt file is already sorted
